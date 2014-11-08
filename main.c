@@ -23,11 +23,17 @@ void main(void) {
 			packetIndex = 0;
 		} // end if new IR packet arrived
 		if(newIrPacket){
-			if(irPacket==CH_UP||irPacket==CH_DW){
-				P1OUT ^= BIT0;
+			if(irPacket==CH_UP){
+				P1OUT |= BIT0;
 			}
-			else if(irPacket==VOL_UP||irPacket==VOL_DW){
-				P1OUT ^= BIT6;
+			else if(irPacket==CH_DW){
+				P1OUT &= ~BIT0;
+			}
+			else if(irPacket==VOL_UP){
+				P1OUT |= BIT6;
+			}
+			else if(irPacket==VOL_DW){
+				P1OUT &= ~BIT6;
 			}
 			newIrPacket = FALSE;
 		}
@@ -65,9 +71,9 @@ void initMSP430() {
 	P1DIR |= BIT0 | BIT6;				// Enable updates to the LED
 	P1OUT &= ~(BIT0 | BIT6);			// An turn the LED off
 
-	TA0CCR0 = 0x8000;					// create a 16mS roll-over period
+	TA0CCR0 = 0x4000;					// create a 16mS roll-over period
 	TACTL &= ~TAIFG;					// clear flag before enabling interrupts = good practice
-	TACTL = ID_3 | TASSEL_2 | MC_1;		// Use 1:1 presclar off MCLK and enable interrupts
+	TACTL = ID_3 | TASSEL_2 | MC_1 | TAIE;		// Use 1:1 presclar off MCLK and enable interrupts
 
 	__enable_interrupt();
 }
@@ -117,18 +123,19 @@ __interrupt void pinChange (void) {
 			{
 				irPacket=(irPacket<<1)|1;
 			}
+			if(packetIndex>1){
+				packetIndex=packetIndex;
+			}
 
 			packetData[packetIndex++] = pulseDuration;
-			TA0CCR0 = 0x0000;
-
+			TACTL = 0;
 			LOW_2_HIGH; 				// Setup pin interrupr on positive edge
 			break;
 
 		case 1:							// !!!!!!!!POSITIVE EDGE!!!!!!!!!!!
 			TAR = 0x0000;						// time measurements are based at time 0
-			TA0CCR0 = 0x8000;
-//			TACTL |= BIT1;
-//			TACTL &= ~TAIFG;
+			TACTL &= ~TAIFG;
+			TACTL = ID_3 | TASSEL_2 | MC_1 | TAIE;
 			HIGH_2_LOW; 						// Setup pin interrupr on positive edge
 			break;
 	} // end switch
@@ -150,8 +157,7 @@ __interrupt void pinChange (void) {
 #pragma vector = TIMER0_A1_VECTOR			// This is from the MSP430G2553.h file
 __interrupt void timerOverflow (void) {
 
-	TA0CCR0 = 0x0000;
-//	TACTL &= ~BIT1;
+//	TACTL &= ~TAIE;
 	packetIndex = 0;
 	newIrPacket = TRUE;
 	TACTL &= ~TAIFG;
