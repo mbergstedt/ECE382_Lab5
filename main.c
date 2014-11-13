@@ -123,9 +123,6 @@ __interrupt void pinChange (void) {
 			{
 				irPacket=(irPacket<<1)|1;
 			}
-			if(packetIndex>1){
-				packetIndex=packetIndex;
-			}
 
 			packetData[packetIndex++] = pulseDuration;
 			TACTL = 0;
